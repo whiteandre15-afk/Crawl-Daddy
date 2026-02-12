@@ -9,7 +9,13 @@
             <h1 class="text-3xl font-bold">Crawl #{{ crawl_id }}</h1>
             <p id="spider-name" class="text-gray-400 mt-1"></p>
         </div>
-        <div id="status-badge" class="px-4 py-2 rounded-full text-sm font-bold uppercase"></div>
+        <div class="flex items-center gap-3">
+            <div id="live-indicator" class="hidden items-center gap-2 text-xs text-emerald-400">
+                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse-green inline-block"></span>
+                <span>LIVE</span>
+            </div>
+            <div id="status-badge" class="px-4 py-2 rounded-full text-sm font-bold uppercase"></div>
+        </div>
     </div>
 
     <!-- Live stats -->

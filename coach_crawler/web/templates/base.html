@@ -3,16 +3,122 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Coach Crawler</title>
+    <title>Kody Is Gay</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
     <style>
-        @keyframes pulse-green { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        body { font-family: 'Inter', system-ui, sans-serif; }
+        .font-mono, code { font-family: 'JetBrains Mono', monospace; }
+
+        /* Glow effects */
+        .glow-emerald { box-shadow: 0 0 20px rgba(16,185,129,0.15), 0 0 40px rgba(16,185,129,0.05); }
+        .glow-blue { box-shadow: 0 0 20px rgba(59,130,246,0.15), 0 0 40px rgba(59,130,246,0.05); }
+        .glow-amber { box-shadow: 0 0 20px rgba(245,158,11,0.15); }
+        .glow-purple { box-shadow: 0 0 20px rgba(168,85,247,0.15); }
+
+        /* Glassmorphism */
+        .glass {
+            background: rgba(17,24,39,0.6);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+
+        /* Animations */
+        @keyframes pulse-green { 0%,100% { opacity:1; } 50% { opacity:0.5; } }
         .animate-pulse-green { animation: pulse-green 2s ease-in-out infinite; }
+
+        @keyframes slide-in-right {
+            from { transform: translateX(30px); opacity:0; }
+            to { transform: translateX(0); opacity:1; }
+        }
+        .animate-slide-in { animation: slide-in-right 0.4s ease-out; }
+
+        @keyframes fade-in {
+            from { opacity:0; transform:translateY(8px); }
+            to { opacity:1; transform:translateY(0); }
+        }
+        .animate-fade-in { animation: fade-in 0.5s ease-out; }
+
+        @keyframes gradient-shift {
+            0% { background-position:0% 50%; }
+            50% { background-position:100% 50%; }
+            100% { background-position:0% 50%; }
+        }
+        .gradient-border {
+            background: linear-gradient(135deg, #10b981, #3b82f6, #a855f7, #10b981);
+            background-size: 300% 300%;
+            animation: gradient-shift 4s ease infinite;
+        }
+
+        @keyframes blink { 0%,100% { opacity:1; } 50% { opacity:0; } }
+        .cursor-blink { animation: blink 1s step-end infinite; }
+
+        @keyframes count-up { from { opacity:0.5; transform:scale(0.95); } to { opacity:1; transform:scale(1); } }
+        .counter-bump { animation: count-up 0.3s ease-out; }
+
+        @keyframes radar-sweep { from { transform:rotate(0deg); } to { transform:rotate(360deg); } }
+
+        @keyframes shimmer {
+            0% { background-position:-200% 0; }
+            100% { background-position:200% 0; }
+        }
+        .progress-shimmer {
+            background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.1) 50%, transparent 100%);
+            background-size: 200% 100%;
+            animation: shimmer 2s linear infinite;
+        }
+
+        /* Nav link hover underline */
+        .nav-link { position:relative; }
+        .nav-link::after {
+            content:'';
+            position:absolute;
+            bottom:-2px; left:0;
+            width:0; height:2px;
+            background:#10b981;
+            transition: width 0.3s ease;
+        }
+        .nav-link:hover::after, .nav-link.active::after { width:100%; }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width:6px; height:6px; }
+        ::-webkit-scrollbar-track { background:#111827; }
+        ::-webkit-scrollbar-thumb { background:#374151; border-radius:3px; }
+        ::-webkit-scrollbar-thumb:hover { background:#4b5563; }
     </style>
 </head>
 <body class="h-full text-gray-100">
-    <div class="min-h-full">
-        <main class="mx-auto max-w-5xl px-4 py-6">
+    <div class="min-h-full flex flex-col">
+        <!-- Navigation -->
+        <nav class="glass sticky top-0 z-50 border-b border-gray-800/50">
+            <div class="mx-auto max-w-7xl px-4">
+                <div class="flex h-14 items-center justify-between">
+                    <a href="/" class="flex items-center gap-3 group">
+                        <div class="w-8 h-8 rounded-lg gradient-border flex items-center justify-center">
+                            <div class="w-[calc(100%-2px)] h-[calc(100%-2px)] rounded-[6px] bg-gray-950 flex items-center justify-center">
+                                <span class="text-emerald-400 font-black text-sm">K</span>
+                            </div>
+                        </div>
+                        <span class="text-lg font-black text-emerald-400 group-hover:text-emerald-300 transition">Kody Is Gay</span>
+                    </a>
+                    <div class="flex items-center gap-1">
+                        <a href="/" class="nav-link px-3 py-2 text-sm font-medium text-gray-400 hover:text-white transition rounded-lg hover:bg-gray-800/50 {% block nav_dashboard %}{% endblock %}">Dashboard</a>
+                        <a href="/coaches" class="nav-link px-3 py-2 text-sm font-medium text-gray-400 hover:text-white transition rounded-lg hover:bg-gray-800/50 {% block nav_coaches %}{% endblock %}">Coaches</a>
+                        <a href="/schools" class="nav-link px-3 py-2 text-sm font-medium text-gray-400 hover:text-white transition rounded-lg hover:bg-gray-800/50 {% block nav_schools %}{% endblock %}">Schools</a>
+                        <a href="/seeds" class="nav-link px-3 py-2 text-sm font-medium text-gray-400 hover:text-white transition rounded-lg hover:bg-gray-800/50 {% block nav_seeds %}{% endblock %}">Seeds</a>
+                        <a href="/tools" class="nav-link px-3 py-2 text-sm font-medium text-gray-400 hover:text-white transition rounded-lg hover:bg-gray-800/50 {% block nav_tools %}{% endblock %}">Tools</a>
+                        <div class="w-px h-6 bg-gray-800 mx-2"></div>
+                        <a href="/crawl" class="nav-link px-4 py-1.5 text-sm font-bold text-emerald-400 border border-emerald-800 hover:bg-emerald-900/30 rounded-lg transition {% block nav_crawl %}{% endblock %}">+ Crawl</a>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="flex-1 mx-auto max-w-7xl w-full px-4 py-6">
             {% block content %}{% endblock %}
         </main>
     </div>

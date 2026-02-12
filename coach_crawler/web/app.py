@@ -29,10 +29,40 @@ app.include_router(schools.router, prefix="/api")
 app.include_router(validate.router, prefix="/api")
 
 
-# One page
+# Pages
 @app.get("/", response_class=HTMLResponse)
 async def dashboard(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
+
+
+@app.get("/coaches", response_class=HTMLResponse)
+async def coaches_page(request: Request):
+    return templates.TemplateResponse("coaches.html", {"request": request})
+
+
+@app.get("/schools", response_class=HTMLResponse)
+async def schools_page(request: Request):
+    return templates.TemplateResponse("schools.html", {"request": request})
+
+
+@app.get("/crawl", response_class=HTMLResponse)
+async def crawl_page(request: Request):
+    return templates.TemplateResponse("crawl.html", {"request": request})
+
+
+@app.get("/crawl/{crawl_id}", response_class=HTMLResponse)
+async def crawl_detail_page(request: Request, crawl_id: int):
+    return templates.TemplateResponse("crawl_detail.html", {"request": request, "crawl_id": crawl_id})
+
+
+@app.get("/seeds", response_class=HTMLResponse)
+async def seeds_page(request: Request):
+    return templates.TemplateResponse("seeds.html", {"request": request})
+
+
+@app.get("/tools", response_class=HTMLResponse)
+async def tools_page(request: Request):
+    return templates.TemplateResponse("tools.html", {"request": request})
 
 
 @app.on_event("startup")
