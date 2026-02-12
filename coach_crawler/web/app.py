@@ -67,5 +67,7 @@ async def tools_page(request: Request):
 
 @app.on_event("startup")
 async def startup():
+    from coach_crawler.models import init_db
+    init_db()
     exports_dir = BASE_DIR.parent.parent / "exports"
     exports_dir.mkdir(exist_ok=True)

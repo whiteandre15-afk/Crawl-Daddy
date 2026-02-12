@@ -178,7 +178,12 @@ async function exportData(format) {
     });
     const data = await res.json();
     if (data.filename) {
-        window.open(`/api/export/download/${data.filename}`, '_blank');
+        const a = document.createElement('a');
+        a.href = `/api/export/download/${data.filename}`;
+        a.download = data.filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
     }
 }
 
