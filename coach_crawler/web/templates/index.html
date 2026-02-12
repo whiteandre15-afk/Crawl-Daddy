@@ -1,0 +1,309 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header + Button -->
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-3xl font-black text-emerald-400">Coach Crawler</h1>
+            <p class="text-gray-500 text-sm">Coaching staff email collection</p>
+        </div>
+        <button id="crawl-btn" onclick="startCrawl()"
+            class="bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white px-10 py-3 rounded-xl font-bold text-lg uppercase tracking-wider transition-all shadow-lg">
+            CRAWL
+        </button>
+    </div>
+
+    <!-- Stats row -->
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div class="bg-gray-900 rounded-xl p-4 border border-gray-800 text-center">
+            <p id="stat-emails" class="text-3xl font-black text-emerald-400">—</p>
+            <p class="text-xs text-gray-500 mt-1 uppercase">Total Emails</p>
+        </div>
+        <div class="bg-gray-900 rounded-xl p-4 border border-gray-800 text-center">
+            <p id="stat-schools" class="text-3xl font-black text-blue-400">—</p>
+            <p class="text-xs text-gray-500 mt-1 uppercase">Schools</p>
+        </div>
+        <div class="bg-gray-900 rounded-xl p-4 border border-gray-800 text-center">
+            <p id="stat-crawled" class="text-3xl font-black text-amber-400">—</p>
+            <p class="text-xs text-gray-500 mt-1 uppercase">Crawled</p>
+        </div>
+        <div class="bg-gray-900 rounded-xl p-4 border border-gray-800 text-center">
+            <p id="stat-pending" class="text-3xl font-black text-gray-500">—</p>
+            <p class="text-xs text-gray-500 mt-1 uppercase">Pending</p>
+        </div>
+    </div>
+
+    <!-- Breakdown by level -->
+    <div class="grid grid-cols-3 gap-3">
+        <div class="bg-gray-900 rounded-xl p-4 border border-gray-800">
+            <p class="text-xs text-gray-500 uppercase mb-1">College</p>
+            <p id="stat-college" class="text-2xl font-black text-blue-400">—</p>
+        </div>
+        <div class="bg-gray-900 rounded-xl p-4 border border-gray-800">
+            <p class="text-xs text-gray-500 uppercase mb-1">High School</p>
+            <p id="stat-hs" class="text-2xl font-black text-amber-400">—</p>
+        </div>
+        <div class="bg-gray-900 rounded-xl p-4 border border-gray-800">
+            <p class="text-xs text-gray-500 uppercase mb-1">Youth</p>
+            <p id="stat-youth" class="text-2xl font-black text-purple-400">—</p>
+        </div>
+    </div>
+
+    <!-- Status banner -->
+    <div id="status-banner" class="hidden bg-emerald-900/30 border border-emerald-800 rounded-xl p-4">
+        <p id="crawl-status" class="text-sm text-emerald-300"></p>
+    </div>
+
+    <!-- Live crawl jobs -->
+    <div id="active-section" class="hidden">
+        <h2 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-2">Active Crawl</h2>
+        <div id="active-jobs" class="bg-gray-900 rounded-xl border border-gray-800 divide-y divide-gray-800"></div>
+    </div>
+
+    <!-- Recent crawls -->
+    <div>
+        <h2 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-2">Recent Crawls</h2>
+        <div id="recent-crawls" class="bg-gray-900 rounded-xl border border-gray-800 divide-y divide-gray-800">
+            <p class="p-4 text-gray-600 text-sm">Loading...</p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let activeCrawls = {};
+let baseEmailCount = 0;
+let crawlRunning = false;
+
+async function loadStats() {
+    try {
+        const res = await fetch('/api/stats');
+        const data = await res.json();
+        baseEmailCount = data.coaches.total;
+
+        document.getElementById('stat-emails').textContent = data.coaches.total.toLocaleString();
+        document.getElementById('stat-schools').textContent = data.schools.total.toLocaleString();
+        document.getElementById('stat-crawled').textContent = data.schools.crawled.toLocaleString();
+        document.getElementById('stat-pending').textContent = data.schools.pending.toLocaleString();
+
+        // Level breakdown
+        const byLevel = {};
+        (data.by_level || []).forEach(l => byLevel[l.level] = l.count);
+        document.getElementById('stat-college').textContent = (byLevel.college || 0).toLocaleString();
+        document.getElementById('stat-hs').textContent = (byLevel.high_school || 0).toLocaleString();
+        document.getElementById('stat-youth').textContent = (byLevel.youth || 0).toLocaleString();
+
+        // Reconnect to running crawls on page load
+        const running = data.recent_crawls.filter(c => c.status === 'running' || c.status === 'starting');
+        if (running.length > 0 && !crawlRunning) {
+            crawlRunning = true;
+            running.forEach(c => {
+                activeCrawls[c.id] = { spider: c.spider_name, coaches_found: c.coaches_found || 0, status: c.status };
+                connectSSE(c.id);
+            });
+            // Also reconnect queued jobs from same batch
+            const queued = data.recent_crawls.filter(c => c.status === 'queued');
+            queued.forEach(c => {
+                activeCrawls[c.id] = { spider: c.spider_name, coaches_found: 0, status: 'queued' };
+                connectSSE(c.id);
+            });
+            disableButton();
+            renderActive();
+        }
+
+        renderRecent(data.recent_crawls);
+    } catch(e) { console.error(e); }
+}
+
+function setStatus(msg) {
+    const banner = document.getElementById('status-banner');
+    const text = document.getElementById('crawl-status');
+    banner.classList.remove('hidden');
+    text.textContent = msg;
+}
+
+function hideStatus() {
+    document.getElementById('status-banner').classList.add('hidden');
+}
+
+function disableButton() {
+    const btn = document.getElementById('crawl-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="w-2 h-2 bg-white rounded-full animate-pulse-green inline-block mr-2"></span>CRAWLING';
+    btn.classList.replace('bg-emerald-600', 'bg-gray-700');
+    btn.classList.replace('hover:bg-emerald-500', 'hover:bg-gray-700');
+}
+
+function enableButton() {
+    const btn = document.getElementById('crawl-btn');
+    btn.disabled = false;
+    btn.textContent = 'CRAWL';
+    btn.classList.replace('bg-gray-700', 'bg-emerald-600');
+    btn.classList.replace('hover:bg-gray-700', 'hover:bg-emerald-500');
+}
+
+async function startCrawl() {
+    if (crawlRunning) return;
+    crawlRunning = true;
+    disableButton();
+    setStatus('Seeding database...');
+
+    try {
+        const seedRes = await fetch('/api/seed-all', { method: 'POST' });
+        const seedData = await seedRes.json();
+        setStatus(`Seeded ${seedData.new_schools} new schools. Launching crawlers...`);
+
+        const res = await fetch('/api/crawl-all', { method: 'POST' });
+        const data = await res.json();
+
+        if (data.jobs) {
+            for (const job of data.jobs) {
+                activeCrawls[job.crawl_id] = {
+                    spider: job.spider_name,
+                    level: job.level,
+                    coaches_found: 0,
+                    status: 'queued',
+                };
+                connectSSE(job.crawl_id);
+            }
+        }
+
+        renderActive();
+        setStatus('Crawling — college first, then high school, then youth seeds + extraction...');
+    } catch (err) {
+        setStatus('Error: ' + err.message);
+        enableButton();
+        crawlRunning = false;
+    }
+}
+
+function renderActive() {
+    const section = document.getElementById('active-section');
+    const container = document.getElementById('active-jobs');
+    const ids = Object.keys(activeCrawls);
+
+    if (ids.length === 0) {
+        section.classList.add('hidden');
+        return;
+    }
+    section.classList.remove('hidden');
+
+    const newTotal = ids.reduce((s, id) => s + (activeCrawls[id].coaches_found || 0), 0);
+    document.getElementById('stat-emails').textContent = (baseEmailCount + newTotal).toLocaleString();
+
+    container.innerHTML = ids.map(id => {
+        const c = activeCrawls[id];
+        const s = c.status;
+
+        let dot, statusText, rowBg;
+        if (s === 'completed') {
+            dot = 'bg-emerald-400'; statusText = 'DONE'; rowBg = '';
+        } else if (s === 'failed') {
+            dot = 'bg-red-400'; statusText = 'FAILED'; rowBg = '';
+        } else if (s === 'running' || s === 'starting') {
+            dot = 'bg-emerald-400 animate-pulse-green'; statusText = 'RUNNING'; rowBg = 'bg-emerald-950/30';
+        } else {
+            dot = 'bg-gray-600'; statusText = 'QUEUED'; rowBg = '';
+        }
+
+        const label = c.spider.replace(/_/g, ' ');
+        const levelBadge = c.level === 'college' ? 'bg-blue-900/50 text-blue-400'
+            : c.level === 'high_school' ? 'bg-amber-900/50 text-amber-400'
+            : c.level === 'youth_seed' ? 'bg-pink-900/50 text-pink-400'
+            : c.level === 'youth' ? 'bg-purple-900/50 text-purple-400'
+            : 'bg-gray-800 text-gray-400';
+
+        return `<div class="flex items-center justify-between px-4 py-2.5 text-sm ${rowBg}">
+            <div class="flex items-center gap-3">
+                <span class="w-2 h-2 rounded-full ${dot} inline-block flex-shrink-0"></span>
+                <span class="text-gray-300">${label}</span>
+                <span class="px-1.5 py-0.5 rounded text-xs ${levelBadge}">${c.level || ''}</span>
+            </div>
+            <div class="flex items-center gap-4">
+                <span class="font-mono text-emerald-400">${(c.coaches_found || 0).toLocaleString()}</span>
+                <span class="text-xs w-16 text-right ${s === 'running' ? 'text-emerald-400' : s === 'failed' ? 'text-red-400' : s === 'completed' ? 'text-emerald-400' : 'text-gray-600'} font-bold">${statusText}</span>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function renderRecent(crawls) {
+    const container = document.getElementById('recent-crawls');
+    // Only show completed/failed from past runs (not current active batch)
+    const activeIds = new Set(Object.keys(activeCrawls));
+    const past = crawls.filter(c => !activeIds.has(String(c.id)) && (c.status === 'completed' || c.status === 'failed'));
+
+    if (past.length === 0) {
+        container.innerHTML = '<p class="p-4 text-gray-600 text-sm">No completed crawls yet.</p>';
+        return;
+    }
+
+    container.innerHTML = past.slice(0, 15).map(c => {
+        const color = c.status === 'completed' ? 'text-emerald-400' : 'text-red-400';
+        const time = c.started_at ? new Date(c.started_at).toLocaleString() : '';
+        const name = c.spider_name.replace(/_/g, ' ');
+        return `<div class="flex items-center justify-between px-4 py-2.5 text-sm">
+            <div>
+                <span class="text-gray-300">${name}</span>
+                <span class="text-gray-600 text-xs ml-2">${time}</span>
+            </div>
+            <div class="flex items-center gap-3">
+                <span class="font-mono">${(c.coaches_found || 0).toLocaleString()} emails</span>
+                <span class="${color} font-bold text-xs uppercase">${c.status}</span>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function connectSSE(crawlId) {
+    const sse = new EventSource(`/api/events/crawl/${crawlId}`);
+
+    sse.addEventListener('progress', (e) => {
+        const data = JSON.parse(e.data);
+        if (activeCrawls[crawlId]) {
+            activeCrawls[crawlId].coaches_found = data.coaches_found || 0;
+            activeCrawls[crawlId].status = data.status;
+        }
+        renderActive();
+    });
+
+    sse.addEventListener('completed', (e) => {
+        const data = JSON.parse(e.data);
+        if (activeCrawls[crawlId]) {
+            activeCrawls[crawlId].coaches_found = data.coaches_found || 0;
+            activeCrawls[crawlId].status = 'completed';
+        }
+        sse.close();
+        renderActive();
+        checkAllDone();
+    });
+
+    sse.addEventListener('failed', () => {
+        if (activeCrawls[crawlId]) activeCrawls[crawlId].status = 'failed';
+        sse.close();
+        renderActive();
+        checkAllDone();
+    });
+}
+
+function checkAllDone() {
+    const all = Object.values(activeCrawls);
+    if (all.every(c => c.status === 'completed' || c.status === 'failed')) {
+        const newFound = all.reduce((sum, c) => sum + (c.coaches_found || 0), 0);
+        setStatus(newFound > 0
+            ? `Crawl complete — ${newFound.toLocaleString()} new coaching emails found.`
+            : 'Crawl complete — no new emails (schools already crawled).');
+        enableButton();
+        crawlRunning = false;
+        activeCrawls = {};
+        document.getElementById('active-section').classList.add('hidden');
+        loadStats();
+    }
+}
+
+loadStats();
+setInterval(() => { if (!crawlRunning) loadStats(); }, 10000);
+</script>
+{% endblock %}

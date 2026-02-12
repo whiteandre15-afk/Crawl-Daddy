@@ -1,0 +1,187 @@
+{% extends "base.html" %}
+{% block title %}Coaches - Coach Crawler{% endblock %}
+{% block nav_coaches %}text-white bg-gray-800{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <div class="flex items-center justify-between">
+        <h1 class="text-3xl font-bold">Coaches</h1>
+        <div class="flex gap-3">
+            <button onclick="exportData('csv')" class="bg-gray-800 hover:bg-gray-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition">
+                Export CSV
+            </button>
+            <button onclick="exportData('excel')" class="bg-gray-800 hover:bg-gray-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition">
+                Export Excel
+            </button>
+        </div>
+    </div>
+
+    <!-- Search + Filters -->
+    <div class="bg-gray-900 rounded-xl border border-gray-800 p-4">
+        <div class="flex flex-wrap gap-3">
+            <input id="search" type="text" placeholder="Search emails, names, schools..."
+                class="flex-1 min-w-[200px] bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-white text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent">
+            <select id="filter-level" class="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2.5 text-white text-sm">
+                <option value="">All Levels</option>
+                <option value="college">College</option>
+                <option value="high_school">High School</option>
+                <option value="club">Club</option>
+            </select>
+            <select id="filter-state" class="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2.5 text-white text-sm">
+                <option value="">All States</option>
+            </select>
+            <select id="filter-role" class="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2.5 text-white text-sm">
+                <option value="">All Roles</option>
+                <option value="head_coach">Head Coach</option>
+                <option value="assistant_coach">Assistant Coach</option>
+                <option value="coordinator">Coordinator</option>
+                <option value="athletic_director">Athletic Director</option>
+                <option value="support_staff">Support Staff</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- Results count -->
+    <div class="flex justify-between items-center text-sm text-gray-400">
+        <span id="result-count">Loading...</span>
+        <div class="flex items-center gap-2">
+            <button id="prev-btn" onclick="changePage(-1)" disabled class="px-3 py-1 bg-gray-800 rounded disabled:opacity-30">Prev</button>
+            <span id="page-info">Page 1</span>
+            <button id="next-btn" onclick="changePage(1)" class="px-3 py-1 bg-gray-800 rounded disabled:opacity-30">Next</button>
+        </div>
+    </div>
+
+    <!-- Table -->
+    <div class="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead class="bg-gray-800/50">
+                    <tr>
+                        <th class="text-left px-4 py-3 text-gray-400 font-medium cursor-pointer hover:text-white" onclick="sortBy('email')">Email</th>
+                        <th class="text-left px-4 py-3 text-gray-400 font-medium cursor-pointer hover:text-white" onclick="sortBy('full_name')">Name</th>
+                        <th class="text-left px-4 py-3 text-gray-400 font-medium">Title</th>
+                        <th class="text-left px-4 py-3 text-gray-400 font-medium">Sport</th>
+                        <th class="text-left px-4 py-3 text-gray-400 font-medium">School</th>
+                        <th class="text-left px-4 py-3 text-gray-400 font-medium">State</th>
+                        <th class="text-left px-4 py-3 text-gray-400 font-medium">Level</th>
+                    </tr>
+                </thead>
+                <tbody id="coach-table" class="divide-y divide-gray-800">
+                    <tr><td colspan="7" class="px-4 py-8 text-center text-gray-500">Loading...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let currentPage = 1;
+let currentSort = 'id';
+let currentOrder = 'desc';
+let debounceTimer;
+
+const STATES = ['AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY'];
+const stateSelect = document.getElementById('filter-state');
+STATES.forEach(s => {
+    const opt = document.createElement('option');
+    opt.value = s; opt.textContent = s;
+    stateSelect.appendChild(opt);
+});
+
+async function loadCoaches() {
+    const params = new URLSearchParams({
+        page: currentPage,
+        limit: 50,
+        sort: currentSort,
+        order: currentOrder,
+    });
+
+    const search = document.getElementById('search').value;
+    const level = document.getElementById('filter-level').value;
+    const state = document.getElementById('filter-state').value;
+    const role = document.getElementById('filter-role').value;
+
+    if (search) params.set('search', search);
+    if (level) params.set('level', level);
+    if (state) params.set('state', state);
+    if (role) params.set('role', role);
+
+    const res = await fetch(`/api/coaches?${params}`);
+    const data = await res.json();
+
+    document.getElementById('result-count').textContent = `${data.total.toLocaleString()} results`;
+    document.getElementById('page-info').textContent = `Page ${data.page} of ${data.pages}`;
+    document.getElementById('prev-btn').disabled = data.page <= 1;
+    document.getElementById('next-btn').disabled = data.page >= data.pages;
+
+    const tbody = document.getElementById('coach-table');
+    if (data.coaches.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" class="px-4 py-8 text-center text-gray-500">No results found</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = data.coaches.map(c => `
+        <tr class="hover:bg-gray-800/50 transition">
+            <td class="px-4 py-3 text-emerald-400 font-mono text-xs">${c.email}</td>
+            <td class="px-4 py-3">${c.full_name || '—'}</td>
+            <td class="px-4 py-3 text-gray-400 text-xs">${c.title || '—'}</td>
+            <td class="px-4 py-3">${c.sport || '—'}</td>
+            <td class="px-4 py-3">${c.school_name}</td>
+            <td class="px-4 py-3 text-center">${c.state}</td>
+            <td class="px-4 py-3">
+                <span class="px-2 py-0.5 rounded text-xs ${c.level === 'college' ? 'bg-blue-900/50 text-blue-400' : c.level === 'high_school' ? 'bg-amber-900/50 text-amber-400' : 'bg-purple-900/50 text-purple-400'}">${c.level}</span>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function changePage(delta) {
+    currentPage += delta;
+    if (currentPage < 1) currentPage = 1;
+    loadCoaches();
+}
+
+function sortBy(col) {
+    if (currentSort === col) {
+        currentOrder = currentOrder === 'asc' ? 'desc' : 'asc';
+    } else {
+        currentSort = col;
+        currentOrder = 'asc';
+    }
+    currentPage = 1;
+    loadCoaches();
+}
+
+// Debounced search
+document.getElementById('search').addEventListener('input', () => {
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => { currentPage = 1; loadCoaches(); }, 300);
+});
+
+// Filter change handlers
+['filter-level', 'filter-state', 'filter-role'].forEach(id => {
+    document.getElementById(id).addEventListener('change', () => { currentPage = 1; loadCoaches(); });
+});
+
+async function exportData(format) {
+    const body = {
+        format,
+        level: document.getElementById('filter-level').value || null,
+        state: document.getElementById('filter-state').value || null,
+    };
+    const res = await fetch('/api/export', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    if (data.filename) {
+        window.open(`/api/export/download/${data.filename}`, '_blank');
+    }
+}
+
+loadCoaches();
+</script>
+{% endblock %}

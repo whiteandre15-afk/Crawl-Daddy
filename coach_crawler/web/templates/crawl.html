@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+{% block title %}Start Crawl - Coach Crawler{% endblock %}
+{% block nav_crawl %}text-white bg-gray-800{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto space-y-8">
+    <h1 class="text-3xl font-bold">Start New Crawl</h1>
+
+    <form id="crawl-form" class="bg-gray-900 rounded-xl border border-gray-800 p-8 space-y-6">
+        <!-- Level -->
+        <div>
+            <label class="block text-sm font-medium text-gray-300 mb-2">Level</label>
+            <select id="level" class="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white focus:ring-2 focus:ring-emerald-500 focus:border-transparent">
+                <option value="college">College</option>
+                <option value="high_school">High School</option>
+                <option value="youth">Youth (Clubs, Rec, Camps)</option>
+            </select>
+        </div>
+
+        <!-- Division -->
+        <div id="division-group">
+            <label class="block text-sm font-medium text-gray-300 mb-2">Division (College only)</label>
+            <select id="division" class="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white focus:ring-2 focus:ring-emerald-500 focus:border-transparent">
+                <option value="">All Divisions</option>
+                <option value="NCAA_D1_FBS">NCAA D1 FBS</option>
+                <option value="NCAA_D1_FCS">NCAA D1 FCS</option>
+                <option value="NCAA_D2">NCAA D2</option>
+                <option value="NCAA_D3">NCAA D3</option>
+                <option value="NAIA">NAIA</option>
+                <option value="NJCAA">NJCAA</option>
+            </select>
+        </div>
+
+        <!-- Platform -->
+        <div id="platform-group">
+            <label class="block text-sm font-medium text-gray-300 mb-2">Platform (College only)</label>
+            <select id="platform" class="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white focus:ring-2 focus:ring-emerald-500 focus:border-transparent">
+                <option value="">Auto-detect</option>
+                <option value="sidearm">Sidearm Sports</option>
+                <option value="prestosports">PrestoSports</option>
+                <option value="custom">Custom / Other</option>
+            </select>
+        </div>
+
+        <!-- Sub-Level -->
+        <div id="sublevel-group" style="display:none">
+            <label class="block text-sm font-medium text-gray-300 mb-2">Sub-Level</label>
+            <select id="sub_level" class="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white focus:ring-2 focus:ring-emerald-500 focus:border-transparent">
+                <option value="">All</option>
+                <option value="high_school">High School</option>
+                <option value="middle_school">Middle School</option>
+                <option value="club_team">Club Team</option>
+                <option value="rec_league">Rec League</option>
+                <option value="academy">Academy</option>
+                <option value="camp">Camp</option>
+                <option value="ymca">YMCA</option>
+            </select>
+        </div>
+
+        <!-- State -->
+        <div>
+            <label class="block text-sm font-medium text-gray-300 mb-2">State (optional)</label>
+            <input id="state" type="text" maxlength="2" placeholder="e.g. CA, TX, FL"
+                class="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white uppercase focus:ring-2 focus:ring-emerald-500 focus:border-transparent">
+        </div>
+
+        <!-- Limit -->
+        <div>
+            <label class="block text-sm font-medium text-gray-300 mb-2">Max Schools to Crawl</label>
+            <input id="limit" type="number" min="1" max="10000" value="50" placeholder="50"
+                class="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white focus:ring-2 focus:ring-emerald-500 focus:border-transparent">
+        </div>
+
+        <!-- Submit -->
+        <button type="submit" id="submit-btn"
+            class="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3.5 rounded-lg font-bold text-lg transition">
+            Launch Crawl
+        </button>
+    </form>
+
+    <div id="error-msg" class="hidden bg-red-900/50 border border-red-700 text-red-300 rounded-lg p-4"></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('level').addEventListener('change', (e) => {
+    const v = e.target.value;
+    document.getElementById('division-group').style.display = v === 'college' ? 'block' : 'none';
+    document.getElementById('platform-group').style.display = v === 'college' ? 'block' : 'none';
+    document.getElementById('sublevel-group').style.display = (v === 'high_school' || v === 'youth') ? 'block' : 'none';
+});
+
+document.getElementById('crawl-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById('submit-btn');
+    btn.disabled = true;
+    btn.textContent = 'Starting...';
+
+    const body = {
+        level: document.getElementById('level').value,
+        sub_level: document.getElementById('sub_level').value || null,
+        division: document.getElementById('division').value || null,
+        platform: document.getElementById('platform').value || null,
+        state: document.getElementById('state').value.toUpperCase() || null,
+        limit: parseInt(document.getElementById('limit').value) || null,
+    };
+
+    try {
+        const res = await fetch('/api/crawl', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+        });
+        const data = await res.json();
+
+        if (data.crawl_id) {
+            window.location.href = `/crawl/${data.crawl_id}`;
+        } else {
+            throw new Error(data.error || 'Failed to start crawl');
+        }
+    } catch (err) {
+        const errorEl = document.getElementById('error-msg');
+        errorEl.textContent = err.message;
+        errorEl.classList.remove('hidden');
+        btn.disabled = false;
+        btn.textContent = 'Launch Crawl';
+    }
+});
+</script>
+{% endblock %}

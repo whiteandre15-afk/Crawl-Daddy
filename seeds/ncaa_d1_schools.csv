@@ -1,0 +1,51 @@
+name,level,division,conference,state,city,athletics_url
+University of Alabama,college,NCAA_D1_FBS,SEC,AL,Tuscaloosa,https://rolltide.com
+Auburn University,college,NCAA_D1_FBS,SEC,AL,Auburn,https://auburntigers.com
+University of Georgia,college,NCAA_D1_FBS,SEC,GA,Athens,https://georgiadogs.com
+University of Florida,college,NCAA_D1_FBS,SEC,FL,Gainesville,https://floridagators.com
+Louisiana State University,college,NCAA_D1_FBS,SEC,LA,Baton Rouge,https://lsusports.net
+University of Tennessee,college,NCAA_D1_FBS,SEC,TN,Knoxville,https://utsports.com
+University of Mississippi,college,NCAA_D1_FBS,SEC,MS,Oxford,https://olemisssports.com
+Mississippi State University,college,NCAA_D1_FBS,SEC,MS,Starkville,https://hailstate.com
+University of Arkansas,college,NCAA_D1_FBS,SEC,AR,Fayetteville,https://arkansasrazorbacks.com
+University of South Carolina,college,NCAA_D1_FBS,SEC,SC,Columbia,https://gamecocksonline.com
+University of Kentucky,college,NCAA_D1_FBS,SEC,KY,Lexington,https://ukathletics.com
+Vanderbilt University,college,NCAA_D1_FBS,SEC,TN,Nashville,https://vucommodores.com
+Texas A&M University,college,NCAA_D1_FBS,SEC,TX,College Station,https://12thman.com
+University of Missouri,college,NCAA_D1_FBS,SEC,MO,Columbia,https://mutigers.com
+Ohio State University,college,NCAA_D1_FBS,Big Ten,OH,Columbus,https://ohiostatebuckeyes.com
+University of Michigan,college,NCAA_D1_FBS,Big Ten,MI,Ann Arbor,https://mgoblue.com
+Penn State University,college,NCAA_D1_FBS,Big Ten,PA,University Park,https://gopsusports.com
+University of Wisconsin,college,NCAA_D1_FBS,Big Ten,WI,Madison,https://uwbadgers.com
+University of Iowa,college,NCAA_D1_FBS,Big Ten,IA,Iowa City,https://hawkeyesports.com
+University of Minnesota,college,NCAA_D1_FBS,Big Ten,MN,Minneapolis,https://gophersports.com
+University of Nebraska,college,NCAA_D1_FBS,Big Ten,NE,Lincoln,https://huskers.com
+Purdue University,college,NCAA_D1_FBS,Big Ten,IN,West Lafayette,https://purduesports.com
+Indiana University,college,NCAA_D1_FBS,Big Ten,IN,Bloomington,https://iuhoosiers.com
+University of Illinois,college,NCAA_D1_FBS,Big Ten,IL,Champaign,https://fightingillini.com
+Northwestern University,college,NCAA_D1_FBS,Big Ten,IL,Evanston,https://nusports.com
+Michigan State University,college,NCAA_D1_FBS,Big Ten,MI,East Lansing,https://msuspartans.com
+Rutgers University,college,NCAA_D1_FBS,Big Ten,NJ,Piscataway,https://scarletknights.com
+University of Maryland,college,NCAA_D1_FBS,Big Ten,MD,College Park,https://umterps.com
+USC,college,NCAA_D1_FBS,Big Ten,CA,Los Angeles,https://usctrojans.com
+UCLA,college,NCAA_D1_FBS,Big Ten,CA,Los Angeles,https://uclabruins.com
+University of Oregon,college,NCAA_D1_FBS,Big Ten,OR,Eugene,https://goducks.com
+University of Washington,college,NCAA_D1_FBS,Big Ten,WA,Seattle,https://gohuskies.com
+University of Texas,college,NCAA_D1_FBS,SEC,TX,Austin,https://texassports.com
+University of Oklahoma,college,NCAA_D1_FBS,SEC,OK,Norman,https://soonersports.com
+Clemson University,college,NCAA_D1_FBS,ACC,SC,Clemson,https://clemsontigers.com
+Florida State University,college,NCAA_D1_FBS,ACC,FL,Tallahassee,https://seminoles.com
+University of Miami,college,NCAA_D1_FBS,ACC,FL,Coral Gables,https://miamihurricanes.com
+Virginia Tech,college,NCAA_D1_FBS,ACC,VA,Blacksburg,https://hokiesports.com
+University of North Carolina,college,NCAA_D1_FBS,ACC,NC,Chapel Hill,https://goheels.com
+NC State University,college,NCAA_D1_FBS,ACC,NC,Raleigh,https://gopack.com
+Duke University,college,NCAA_D1_FBS,ACC,NC,Durham,https://goduke.com
+University of Pittsburgh,college,NCAA_D1_FBS,ACC,PA,Pittsburgh,https://pittsburghpanthers.com
+Syracuse University,college,NCAA_D1_FBS,ACC,NY,Syracuse,https://cuse.com
+Boston College,college,NCAA_D1_FBS,ACC,MA,Chestnut Hill,https://bceagles.com
+Wake Forest University,college,NCAA_D1_FBS,ACC,NC,Winston-Salem,https://godeacs.com
+University of Louisville,college,NCAA_D1_FBS,ACC,KY,Louisville,https://gocards.com
+University of Virginia,college,NCAA_D1_FBS,ACC,VA,Charlottesville,https://virginiasports.com
+Georgia Tech,college,NCAA_D1_FBS,ACC,GA,Atlanta,https://ramblinwreck.com
+Notre Dame,college,NCAA_D1_FBS,Independent,IN,Notre Dame,https://und.com
+Stanford University,college,NCAA_D1_FBS,ACC,CA,Stanford,https://gostanford.com

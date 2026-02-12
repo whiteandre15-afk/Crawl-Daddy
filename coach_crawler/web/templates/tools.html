@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+{% block title %}Tools - Coach Crawler{% endblock %}
+{% block nav_tools %}text-white bg-gray-800{% endblock %}
+
+{% block content %}
+<div class="space-y-8">
+    <h1 class="text-3xl font-bold">Tools</h1>
+
+    <!-- Status Cards -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="bg-gray-900 rounded-2xl p-6 border border-gray-800 text-center">
+            <p id="stat-total" class="text-4xl font-black text-blue-400 counter">—</p>
+            <p class="text-sm text-gray-400 mt-2 uppercase tracking-wider">Total Coaches</p>
+        </div>
+        <div class="bg-gray-900 rounded-2xl p-6 border border-gray-800 text-center">
+            <p id="stat-verified" class="text-4xl font-black text-emerald-400 counter">—</p>
+            <p class="text-sm text-gray-400 mt-2 uppercase tracking-wider">Verified</p>
+        </div>
+        <div class="bg-gray-900 rounded-2xl p-6 border border-gray-800 text-center">
+            <p id="stat-unverified" class="text-4xl font-black text-amber-400 counter">—</p>
+            <p class="text-sm text-gray-400 mt-2 uppercase tracking-wider">Unverified</p>
+        </div>
+        <div class="bg-gray-900 rounded-2xl p-6 border border-gray-800 text-center">
+            <p id="stat-dupes" class="text-4xl font-black text-red-400 counter">—</p>
+            <p class="text-sm text-gray-400 mt-2 uppercase tracking-wider">Duplicate Emails</p>
+        </div>
+    </div>
+
+    <!-- Email Validation -->
+    <div class="bg-gray-900 rounded-xl border border-gray-800">
+        <div class="px-6 py-4 border-b border-gray-800">
+            <h2 class="text-lg font-semibold">Email Validation</h2>
+            <p class="text-gray-500 text-sm mt-1">Validate unverified email addresses</p>
+        </div>
+        <div class="p-6 space-y-4">
+            <label class="flex items-center gap-3 cursor-pointer">
+                <input type="checkbox" id="check-mx" class="w-4 h-4 rounded bg-gray-800 border-gray-600 text-emerald-500 focus:ring-emerald-500">
+                <span class="text-sm text-gray-300">Check MX Records</span>
+                <span class="text-xs text-gray-500">(slower — makes DNS queries for each email domain)</span>
+            </label>
+            <button onclick="runValidation()" id="validate-btn"
+                class="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2.5 rounded-lg font-medium transition">
+                Validate Emails
+            </button>
+            <div id="validate-result" class="hidden rounded-lg p-4 text-sm"></div>
+        </div>
+    </div>
+
+    <!-- Deduplication -->
+    <div class="bg-gray-900 rounded-xl border border-gray-800">
+        <div class="px-6 py-4 border-b border-gray-800">
+            <h2 class="text-lg font-semibold">Deduplication</h2>
+            <p class="text-gray-500 text-sm mt-1">Find and remove duplicate coach records (keeps most recent per email)</p>
+        </div>
+        <div class="p-6 space-y-4">
+            <div class="flex gap-3">
+                <button onclick="runDedup(true)" id="preview-btn"
+                    class="bg-gray-800 hover:bg-gray-700 text-white px-6 py-2.5 rounded-lg font-medium transition">
+                    Preview Duplicates
+                </button>
+                <button onclick="confirmDedup()" id="remove-btn"
+                    class="bg-red-600 hover:bg-red-700 text-white px-6 py-2.5 rounded-lg font-medium transition">
+                    Remove Duplicates
+                </button>
+            </div>
+            <div id="dedup-result" class="hidden rounded-lg p-4 text-sm"></div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function loadStatus() {
+    const res = await fetch('/api/validate/status');
+    const data = await res.json();
+    document.getElementById('stat-total').textContent = data.total_coaches.toLocaleString();
+    document.getElementById('stat-verified').textContent = data.verified.toLocaleString();
+    document.getElementById('stat-unverified').textContent = data.unverified.toLocaleString();
+    document.getElementById('stat-dupes').textContent = data.duplicate_emails.toLocaleString();
+}
+
+async function runValidation() {
+    const btn = document.getElementById('validate-btn');
+    btn.disabled = true;
+    btn.textContent = 'Validating...';
+
+    const checkMx = document.getElementById('check-mx').checked;
+
+    try {
+        const res = await fetch('/api/validate/emails', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ check_mx: checkMx }),
+        });
+        const data = await res.json();
+
+        const el = document.getElementById('validate-result');
+        el.className = 'rounded-lg p-4 text-sm bg-emerald-900/50 border border-emerald-700 text-emerald-300';
+        el.innerHTML = `Checked <strong>${data.total_checked.toLocaleString()}</strong> emails: <strong>${data.valid.toLocaleString()}</strong> valid, <strong>${data.invalid.toLocaleString()}</strong> invalid, <strong>${data.disposable.toLocaleString()}</strong> disposable`;
+        el.classList.remove('hidden');
+
+        loadStatus();
+    } catch (err) {
+        const el = document.getElementById('validate-result');
+        el.className = 'rounded-lg p-4 text-sm bg-red-900/50 border border-red-700 text-red-300';
+        el.textContent = 'Error: ' + err.message;
+        el.classList.remove('hidden');
+    }
+
+    btn.disabled = false;
+    btn.textContent = 'Validate Emails';
+}
+
+function confirmDedup() {
+    if (confirm('This will permanently remove duplicate coach records. Continue?')) {
+        runDedup(false);
+    }
+}
+
+async function runDedup(dryRun) {
+    const btnId = dryRun ? 'preview-btn' : 'remove-btn';
+    const btn = document.getElementById(btnId);
+    btn.disabled = true;
+    btn.textContent = dryRun ? 'Scanning...' : 'Removing...';
+
+    try {
+        const res = await fetch('/api/validate/dedup', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ dry_run: dryRun }),
+        });
+        const data = await res.json();
+
+        const el = document.getElementById('dedup-result');
+        const mode = dryRun ? 'PREVIEW' : 'APPLIED';
+        el.className = `rounded-lg p-4 text-sm ${dryRun ? 'bg-amber-900/50 border border-amber-700 text-amber-300' : 'bg-emerald-900/50 border border-emerald-700 text-emerald-300'}`;
+        el.innerHTML = `<strong>${mode}</strong>: Found <strong>${data.total_dupes.toLocaleString()}</strong> duplicates. <strong>${data.removed.toLocaleString()}</strong> ${dryRun ? 'would be' : ''} removed.`;
+        el.classList.remove('hidden');
+
+        loadStatus();
+    } catch (err) {
+        const el = document.getElementById('dedup-result');
+        el.className = 'rounded-lg p-4 text-sm bg-red-900/50 border border-red-700 text-red-300';
+        el.textContent = 'Error: ' + err.message;
+        el.classList.remove('hidden');
+    }
+
+    btn.disabled = false;
+    btn.textContent = dryRun ? 'Preview Duplicates' : 'Remove Duplicates';
+}
+
+loadStatus();
+</script>
+{% endblock %}

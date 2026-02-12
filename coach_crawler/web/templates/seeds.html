@@ -1,0 +1,202 @@
+{% extends "base.html" %}
+{% block title %}Seeds - Coach Crawler{% endblock %}
+{% block nav_seeds %}text-white bg-gray-800{% endblock %}
+
+{% block content %}
+<div class="space-y-8">
+    <h1 class="text-3xl font-bold">Seed Management</h1>
+
+    <!-- Seed Files -->
+    <div class="bg-gray-900 rounded-xl border border-gray-800">
+        <div class="px-6 py-4 border-b border-gray-800 flex justify-between items-center">
+            <div>
+                <h2 class="text-lg font-semibold">Seed Files</h2>
+                <p class="text-gray-500 text-sm mt-1">Load school data from CSV files into the database</p>
+            </div>
+            <button onclick="loadAll()" id="load-all-btn"
+                class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition">
+                Load All
+            </button>
+        </div>
+        <div id="seed-files" class="divide-y divide-gray-800">
+            <p class="p-6 text-gray-500">Loading...</p>
+        </div>
+    </div>
+
+    <!-- Status message -->
+    <div id="load-status" class="hidden rounded-lg p-4 text-sm"></div>
+
+    <!-- Seed Discovery -->
+    <div class="bg-gray-900 rounded-xl border border-gray-800">
+        <div class="px-6 py-4 border-b border-gray-800">
+            <h2 class="text-lg font-semibold">Seed Discovery</h2>
+            <p class="text-gray-500 text-sm mt-1">Discover schools from web directories using spiders</p>
+        </div>
+        <form id="discover-form" class="p-6 space-y-6">
+            <!-- Source -->
+            <div>
+                <label class="block text-sm font-medium text-gray-300 mb-2">Source</label>
+                <select id="source" required class="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white focus:ring-2 focus:ring-emerald-500 focus:border-transparent">
+                    <option value="">Select a source...</option>
+                    <optgroup label="College">
+                        <option value="ncaa_directory">NCAA Directory</option>
+                    </optgroup>
+                    <optgroup label="High School">
+                        <option value="maxpreps">MaxPreps</option>
+                        <option value="state_athletic">State Athletic Associations</option>
+                    </optgroup>
+                    <optgroup label="Youth">
+                        <option value="us_club_soccer">US Club Soccer</option>
+                        <option value="aau">AAU</option>
+                        <option value="pop_warner">Pop Warner</option>
+                        <option value="little_league">Little League</option>
+                        <option value="ymca">YMCA</option>
+                        <option value="usa_swimming">USA Swimming</option>
+                    </optgroup>
+                </select>
+            </div>
+
+            <!-- State -->
+            <div>
+                <label class="block text-sm font-medium text-gray-300 mb-2">State (optional)</label>
+                <input id="discover-state" type="text" maxlength="2" placeholder="e.g. CA, TX, FL"
+                    class="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white uppercase focus:ring-2 focus:ring-emerald-500 focus:border-transparent">
+            </div>
+
+            <!-- Limit -->
+            <div>
+                <label class="block text-sm font-medium text-gray-300 mb-2">Max Schools to Discover</label>
+                <input id="discover-limit" type="number" min="1" max="50000" placeholder="No limit"
+                    class="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white focus:ring-2 focus:ring-emerald-500 focus:border-transparent">
+            </div>
+
+            <!-- Submit -->
+            <button type="submit" id="discover-btn"
+                class="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3.5 rounded-lg font-bold text-lg transition">
+                Start Discovery
+            </button>
+        </form>
+    </div>
+
+    <div id="error-msg" class="hidden bg-red-900/50 border border-red-700 text-red-300 rounded-lg p-4"></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function loadSeedFiles() {
+    const res = await fetch('/api/seed-files');
+    const data = await res.json();
+    const container = document.getElementById('seed-files');
+
+    if (data.files.length === 0) {
+        container.innerHTML = '<p class="p-6 text-gray-500">No seed files found in seeds/ directory.</p>';
+        return;
+    }
+
+    container.innerHTML = data.files.map(f => `
+        <div class="flex items-center justify-between px-6 py-4">
+            <div class="flex items-center gap-4">
+                <span class="font-mono text-sm text-emerald-400">${f.name}</span>
+                <span class="text-gray-500 text-xs">${f.rows.toLocaleString()} rows</span>
+                <span class="text-gray-600 text-xs">${f.size_kb} KB</span>
+            </div>
+            <button onclick="loadFile('${f.name}', this)" class="bg-gray-800 hover:bg-gray-700 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition">
+                Load
+            </button>
+        </div>
+    `).join('');
+}
+
+async function loadFile(filename, btn) {
+    btn.disabled = true;
+    btn.textContent = 'Loading...';
+
+    try {
+        const res = await fetch('/api/seed-load', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ filename }),
+        });
+        const data = await res.json();
+
+        if (data.error) {
+            showStatus(`Error: ${data.error}`, 'error');
+        } else {
+            showStatus(`Loaded ${data.new_schools.toLocaleString()} new schools from ${filename} (${data.total_schools.toLocaleString()} total)`, 'success');
+        }
+    } catch (err) {
+        showStatus('Error: ' + err.message, 'error');
+    }
+
+    btn.disabled = false;
+    btn.textContent = 'Load';
+}
+
+async function loadAll() {
+    const btn = document.getElementById('load-all-btn');
+    btn.disabled = true;
+    btn.textContent = 'Loading...';
+
+    try {
+        const res = await fetch('/api/seed-all', { method: 'POST' });
+        const data = await res.json();
+        showStatus(`Loaded ${data.new_schools.toLocaleString()} new schools (${data.total_schools.toLocaleString()} total)`, 'success');
+    } catch (err) {
+        showStatus('Error: ' + err.message, 'error');
+    }
+
+    btn.disabled = false;
+    btn.textContent = 'Load All';
+}
+
+function showStatus(msg, type) {
+    const el = document.getElementById('load-status');
+    el.classList.remove('hidden', 'bg-emerald-900/50', 'border-emerald-700', 'text-emerald-300', 'bg-red-900/50', 'border-red-700', 'text-red-300');
+    if (type === 'success') {
+        el.classList.add('bg-emerald-900/50', 'border', 'border-emerald-700', 'text-emerald-300');
+    } else {
+        el.classList.add('bg-red-900/50', 'border', 'border-red-700', 'text-red-300');
+    }
+    el.textContent = msg;
+    el.classList.remove('hidden');
+    setTimeout(() => el.classList.add('hidden'), 5000);
+}
+
+document.getElementById('discover-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById('discover-btn');
+    btn.disabled = true;
+    btn.textContent = 'Starting...';
+
+    const body = {
+        source: document.getElementById('source').value,
+        state: document.getElementById('discover-state').value.toUpperCase() || null,
+        limit: parseInt(document.getElementById('discover-limit').value) || null,
+    };
+
+    try {
+        const res = await fetch('/api/seed-discover', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+        });
+        const data = await res.json();
+
+        if (data.crawl_id) {
+            window.location.href = `/crawl/${data.crawl_id}`;
+        } else {
+            throw new Error(data.error || 'Failed to start discovery');
+        }
+    } catch (err) {
+        const errorEl = document.getElementById('error-msg');
+        errorEl.textContent = err.message;
+        errorEl.classList.remove('hidden');
+        btn.disabled = false;
+        btn.textContent = 'Start Discovery';
+    }
+});
+
+loadSeedFiles();
+</script>
+{% endblock %}

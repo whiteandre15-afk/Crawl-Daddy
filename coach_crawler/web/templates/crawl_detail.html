@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+{% block title %}Crawl #{{ crawl_id }} - Coach Crawler{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-3xl font-bold">Crawl #{{ crawl_id }}</h1>
+            <p id="spider-name" class="text-gray-400 mt-1"></p>
+        </div>
+        <div id="status-badge" class="px-4 py-2 rounded-full text-sm font-bold uppercase"></div>
+    </div>
+
+    <!-- Live stats -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="bg-gray-900 rounded-xl p-6 border border-gray-800 text-center">
+            <p class="text-sm text-gray-400 uppercase tracking-wider">Emails Found</p>
+            <p id="live-coaches" class="text-5xl font-bold text-emerald-400 mt-3 counter">0</p>
+        </div>
+        <div class="bg-gray-900 rounded-xl p-6 border border-gray-800 text-center">
+            <p class="text-sm text-gray-400 uppercase tracking-wider">URLs Processed</p>
+            <p id="live-urls" class="text-5xl font-bold text-blue-400 mt-3 counter">0</p>
+        </div>
+        <div class="bg-gray-900 rounded-xl p-6 border border-gray-800 text-center">
+            <p class="text-sm text-gray-400 uppercase tracking-wider">Failed</p>
+            <p id="live-failed" class="text-5xl font-bold text-red-400 mt-3 counter">0</p>
+        </div>
+    </div>
+
+    <!-- Progress bar -->
+    <div class="bg-gray-900 rounded-xl p-6 border border-gray-800">
+        <div class="flex justify-between text-sm text-gray-400 mb-2">
+            <span>Progress</span>
+            <span id="progress-text">0%</span>
+        </div>
+        <div class="w-full bg-gray-800 rounded-full h-4 overflow-hidden">
+            <div id="progress-bar" class="bg-emerald-500 h-4 rounded-full transition-all duration-500" style="width: 0%"></div>
+        </div>
+    </div>
+
+    <!-- Live log -->
+    <div class="bg-gray-900 rounded-xl border border-gray-800">
+        <div class="px-6 py-4 border-b border-gray-800 flex justify-between items-center">
+            <h3 class="text-lg font-semibold">Live Feed</h3>
+            <span id="event-count" class="text-sm text-gray-500">0 events</span>
+        </div>
+        <div id="live-log" class="p-4 font-mono text-sm max-h-96 overflow-y-auto space-y-1">
+            <p class="text-gray-500">Connecting...</p>
+        </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="flex gap-4">
+        <a href="/coaches" class="bg-gray-800 hover:bg-gray-700 text-white px-6 py-2.5 rounded-lg font-medium transition">
+            View All Coaches
+        </a>
+        <a href="/crawl" class="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2.5 rounded-lg font-medium transition">
+            Start Another Crawl
+        </a>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const crawlId = {{ crawl_id }};
+let eventCount = 0;
+
+// Load initial state
+async function loadCrawl() {
+    const res = await fetch(`/api/crawl/${crawlId}`);
+    const data = await res.json();
+    document.getElementById('spider-name').textContent = data.spider_name;
+    updateStatus(data.status);
+    updateStats(data);
+}
+
+function updateStatus(status) {
+    const badge = document.getElementById('status-badge');
+    badge.textContent = status;
+    if (status === 'running' || status === 'starting') {
+        badge.className = 'px-4 py-2 rounded-full text-sm font-bold uppercase bg-amber-900/50 text-amber-400 border border-amber-700';
+        document.getElementById('live-indicator').classList.remove('hidden');
+        document.getElementById('live-indicator').classList.add('flex');
+    } else if (status === 'completed') {
+        badge.className = 'px-4 py-2 rounded-full text-sm font-bold uppercase bg-emerald-900/50 text-emerald-400 border border-emerald-700';
+        document.getElementById('live-indicator').classList.add('hidden');
+    } else if (status === 'failed') {
+        badge.className = 'px-4 py-2 rounded-full text-sm font-bold uppercase bg-red-900/50 text-red-400 border border-red-700';
+        document.getElementById('live-indicator').classList.add('hidden');
+    }
+}
+
+function updateStats(data) {
+    document.getElementById('live-coaches').textContent = (data.coaches_found || 0).toLocaleString();
+    document.getElementById('live-urls').textContent = (data.urls_completed || 0).toLocaleString();
+    document.getElementById('live-failed').textContent = (data.urls_failed || 0).toLocaleString();
+
+    if (data.urls_total > 0) {
+        const pct = Math.round((data.urls_completed / data.urls_total) * 100);
+        document.getElementById('progress-bar').style.width = pct + '%';
+        document.getElementById('progress-text').textContent = pct + '%';
+    }
+}
+
+function addLogEntry(msg, type = 'info') {
+    const log = document.getElementById('live-log');
+    const colors = { info: 'text-gray-300', success: 'text-emerald-400', error: 'text-red-400', warn: 'text-amber-400' };
+    const time = new Date().toLocaleTimeString();
+    const entry = document.createElement('p');
+    entry.className = colors[type] || 'text-gray-300';
+    entry.textContent = `[${time}] ${msg}`;
+    log.appendChild(entry);
+    log.scrollTop = log.scrollHeight;
+
+    eventCount++;
+    document.getElementById('event-count').textContent = `${eventCount} events`;
+}
+
+// SSE connection
+function connectSSE() {
+    const log = document.getElementById('live-log');
+    log.innerHTML = '';
+    addLogEntry('Connected to crawl stream...', 'info');
+
+    const source = new EventSource(`/api/events/crawl/${crawlId}`);
+
+    source.addEventListener('progress', (e) => {
+        const data = JSON.parse(e.data);
+        updateStatus(data.status);
+        updateStats(data);
+        addLogEntry(`Emails: ${data.coaches_found} | URLs: ${data.urls_completed}`, 'info');
+    });
+
+    source.addEventListener('completed', (e) => {
+        const data = JSON.parse(e.data);
+        updateStatus('completed');
+        updateStats(data);
+        addLogEntry(`CRAWL COMPLETE — ${data.coaches_found} emails collected!`, 'success');
+        source.close();
+    });
+
+    source.addEventListener('failed', (e) => {
+        updateStatus('failed');
+        addLogEntry('Crawl failed.', 'error');
+        source.close();
+    });
+
+    source.onerror = () => {
+        addLogEntry('Connection lost. Retrying...', 'warn');
+    };
+}
+
+loadCrawl();
+connectSSE();
+</script>
+{% endblock %}
